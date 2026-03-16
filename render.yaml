@@ -9,6 +9,8 @@ services:
       mountPath: /data
       sizeGB: 1
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: DATABASE_URL
         value: sqlite:////data/reclamacoes.db
       - key: FIRECRAWL_API_KEY
