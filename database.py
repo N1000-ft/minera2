@@ -12,7 +12,11 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 load_dotenv()
 
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///reclamacoes.db')
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+_is_sqlite = DATABASE_URL.startswith('sqlite')
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if _is_sqlite else {},
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
