@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Plataformas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Gestão de Plataformas</h1>
+        <p class="text-gray-500 text-sm mt-1">Adicione, edite ou desative plataformas monitoradas</p>
+      </div>
+      <a href="/" class="text-blue-600 hover:underline text-sm">← Dashboard</a>
+    </div>
+
+    <!-- Formulário de adição -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+      <h2 class="font-semibold text-gray-800 mb-4">Adicionar Nova Plataforma</h2>
+      <form id="form-adicionar" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Plataforma</label>
+            <input type="text" id="novo-nome" required
+              placeholder="Ex: Eduzz"
+              class="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">URL do Reclame Aqui</label>
+            <input type="url" id="novo-url" required
+              placeholder="https://www.reclameaqui.com.br/empresa/..."
+              class="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <p class="text-xs text-gray-400 mt-1">URL da página da empresa no Reclame Aqui</p>
+          </div>
+        </div>
+        <div id="form-erro" class="text-red-500 text-sm hidden"></div>
+        <button type="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+          Adicionar Plataforma
+        </button>
+      </form>
+    </div>
+
+    <!-- Lista de plataformas -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b flex items-center justify-between">
+        <h2 class="font-semibold text-gray-800">Plataformas Cadastradas</h2>
+        <span id="count-plataformas" class="text-sm text-gray-400"></span>
+      </div>
+      <div id="lista-plataformas" class="divide-y">
+        <div class="p-8 text-center text-gray-400">Carregando...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal de edição -->
+  <div id="modal-editar" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-gray-900">Editar Plataforma</h3>
+        <button onclick="fecharModalEditar()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
+      </div>
+      <input type="hidden" id="edit-id" />
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+          <input type="text" id="edit-nome"
+            class="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">URL Base</label>
+          <input type="url" id="edit-url"
+            class="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+      </div>
+      <div id="edit-erro" class="text-red-500 text-sm mb-3 hidden"></div>
+      <div class="flex gap-3 justify-end">
+        <button onclick="fecharModalEditar()"
+          class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
+        <button onclick="salvarEdicao()"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  async function carregarPlataformas() {
+    const res = await fetch('/api/plataformas');
+    const lista = await res.json();
+
+    document.getElementById('count-plataformas').textContent = `${lista.length} plataformas`;
+
+    const container = document.getElementById('lista-plataformas');
+    if (lista.length === 0) {
+      container.innerHTML = '<div class="p-8 text-center text-gray-400">Nenhuma plataforma cadastrada.</div>';
+      return;
+    }
+
+    container.innerHTML = lista.map(p => `
+      <div class="px-6 py-4 flex items-center justify-between gap-4 ${!p.ativa ? 'opacity-60' : ''}">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-medium text-gray-900">${p.nome}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium ${p.ativa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+              ${p.ativa ? 'Ativa' : 'Inativa'}
+            </span>
+          </div>
+          <p class="text-xs text-gray-400 truncate">${p.url_base}</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            ${(p.total_reclamacoes || 0).toLocaleString('pt-BR')} reclamações ·
+            ${p.ultima_raspagem ? 'Última raspagem: ' + new Date(p.ultima_raspagem).toLocaleDateString('pt-BR') : 'Nunca raspada'}
+          </p>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button onclick="togglePlataforma(${p.id})"
+            class="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50 transition-colors">
+            ${p.ativa ? 'Desativar' : 'Ativar'}
+          </button>
+          <button onclick="abrirModalEditar(${p.id}, '${p.nome.replace(/'/g,"\\'") }', '${p.url_base}')"
+            class="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50 transition-colors">
+            Editar
+          </button>
+          <button onclick="deletarPlataforma(${p.id}, '${p.nome.replace(/'/g,"\\'")}')"
+            class="px-3 py-1.5 text-xs bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-colors">
+            Remover
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Adicionar
+  document.getElementById('form-adicionar').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nome = document.getElementById('novo-nome').value.trim();
+    const url  = document.getElementById('novo-url').value.trim();
+    const erroEl = document.getElementById('form-erro');
+    erroEl.classList.add('hidden');
+
+    const res = await fetch('/api/plataformas', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nome, url_base: url}),
+    });
+
+    if (res.ok) {
+      document.getElementById('form-adicionar').reset();
+      carregarPlataformas();
+    } else {
+      const err = await res.json();
+      erroEl.textContent = err.detail || 'Erro ao adicionar';
+      erroEl.classList.remove('hidden');
+    }
+  });
+
+  // Toggle ativo/inativo
+  async function togglePlataforma(id) {
+    await fetch(`/api/plataformas/${id}/toggle`, {method: 'POST'});
+    carregarPlataformas();
+  }
+
+  // Remover (soft delete)
+  async function deletarPlataforma(id, nome) {
+    if (!confirm(`Desativar a plataforma "${nome}"? (pode ser reativada depois)`)) return;
+    await fetch(`/api/plataformas/${id}`, {method: 'DELETE'});
+    carregarPlataformas();
+  }
+
+  // Editar
+  function abrirModalEditar(id, nome, url) {
+    document.getElementById('edit-id').value   = id;
+    document.getElementById('edit-nome').value = nome;
+    document.getElementById('edit-url').value  = url;
+    document.getElementById('edit-erro').classList.add('hidden');
+    document.getElementById('modal-editar').classList.remove('hidden');
+  }
+
+  function fecharModalEditar() {
+    document.getElementById('modal-editar').classList.add('hidden');
+  }
+
+  async function salvarEdicao() {
+    const id   = document.getElementById('edit-id').value;
+    const nome = document.getElementById('edit-nome').value.trim();
+    const url  = document.getElementById('edit-url').value.trim();
+    const erroEl = document.getElementById('edit-erro');
+    erroEl.classList.add('hidden');
+
+    const res = await fetch(`/api/plataformas/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nome, url_base: url}),
+    });
+
+    if (res.ok) {
+      fecharModalEditar();
+      carregarPlataformas();
+    } else {
+      const err = await res.json();
+      erroEl.textContent = err.detail || 'Erro ao salvar';
+      erroEl.classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('modal-editar').addEventListener('click', function(e) {
+    if (e.target === this) fecharModalEditar();
+  });
+
+  carregarPlataformas();
+</script>
+</body>
+</html>

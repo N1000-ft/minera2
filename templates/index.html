@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minera 2.0 — Agregador de Reclamações</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .status-badge { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:.75rem; font-weight:600; }
+    .status-respondida     { background:#d1fae5; color:#065f46; }
+    .status-nao_respondida { background:#fee2e2; color:#991b1b; }
+    .status-avaliada       { background:#dbeafe; color:#1e40af; }
+    .status-em_analise     { background:#fef3c7; color:#92400e; }
+    .status-desconhecido   { background:#f3f4f6; color:#374151; }
+    .nicho-chip { cursor:pointer; transition:all .15s; }
+    .nicho-chip:hover { transform:scale(1.05); }
+    .nicho-chip.active { ring:2px; }
+    .palavra-tag { cursor:pointer; transition:all .15s; }
+    .palavra-tag:hover { opacity:.8; transform:scale(1.05); }
+    .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Minera 2.0</h1>
+      <p class="text-gray-500 text-sm mt-1">Agregador de Reclamações · Reclame Aqui · 10 plataformas</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/plataformas"
+         class="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        Gerenciar Plataformas
+      </a>
+      <button onclick="exportarCSV()"
+         class="border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        ↓ CSV
+      </button>
+      <button onclick="executarScraping()" id="btn-scraping"
+         class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+        Atualizar Agora
+      </button>
+    </div>
+  </div>
+
+  <!-- Estatísticas -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="text-sm text-gray-500">Total coletadas</div>
+      <div class="text-2xl font-bold text-gray-900" id="stat-total">—</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="text-sm text-gray-500">Últimas 24h</div>
+      <div class="text-2xl font-bold text-green-600" id="stat-24h">—</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="text-sm text-gray-500">Não respondidas</div>
+      <div class="text-2xl font-bold text-red-500" id="stat-nr">—</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="text-sm text-gray-500">Respondidas</div>
+      <div class="text-2xl font-bold text-blue-500" id="stat-resp">—</div>
+    </div>
+  </div>
+
+  <!-- Gráfico de tendência + tabela plataformas -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+    <!-- Gráfico -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-3 text-sm">Reclamações coletadas (últimos 30 dias)</h2>
+      <canvas id="grafico-tendencia" height="150"></canvas>
+    </div>
+
+    <!-- Tabela plataformas -->
+    <div class="bg-white rounded-xl shadow-sm p-5 overflow-x-auto">
+      <h2 class="font-semibold text-gray-700 mb-3 text-sm">Por Plataforma</h2>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-gray-400 text-left border-b text-xs uppercase">
+            <th class="pb-2 pr-4">Plataforma</th>
+            <th class="pb-2 pr-4 text-right">Total</th>
+            <th class="pb-2 text-right">Última Raspagem</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-plataformas"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Nichos detectados -->
+  <div class="bg-white rounded-xl shadow-sm p-5 mb-6" id="secao-nichos">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-gray-700 text-sm">Nichos Detectados</h2>
+      <button onclick="executarAnalise()" id="btn-analise"
+        class="text-xs text-blue-600 hover:underline">Reanalisar</button>
+    </div>
+    <div id="nichos-grid" class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div class="text-gray-400 text-sm col-span-5">Aguardando análise...</div>
+    </div>
+  </div>
+
+  <!-- Nuvem de palavras-chave -->
+  <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+    <h2 class="font-semibold text-gray-700 mb-3 text-sm">Palavras-Chave Mais Frequentes</h2>
+    <div id="palavras-chave" class="flex flex-wrap gap-2">
+      <div class="text-gray-400 text-sm">Aguardando análise...</div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <input type="text" id="busca" placeholder="Buscar por palavra-chave..."
+        class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 md:col-span-2"
+        onkeydown="if(event.key==='Enter') buscar()" />
+      <select id="plataforma" class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none">
+        <option value="">Todas as Plataformas</option>
+      </select>
+      <select id="status" class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none">
+        <option value="">Todos os Status</option>
+        <option value="nao_respondida">Não respondida</option>
+        <option value="respondida">Respondida</option>
+        <option value="avaliada">Avaliada</option>
+        <option value="em_analise">Em análise</option>
+      </select>
+    </div>
+    <!-- Filtro de nicho ativo -->
+    <div id="filtro-nicho-ativo" class="hidden mt-3 flex items-center gap-2">
+      <span class="text-xs text-gray-500">Nicho:</span>
+      <span id="nicho-ativo-label"
+        class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium"></span>
+      <button onclick="limparNicho()" class="text-xs text-gray-400 hover:text-gray-600 underline">× limpar</button>
+    </div>
+    <div class="flex items-center gap-3 mt-3">
+      <button onclick="buscar()"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+        Buscar
+      </button>
+      <button onclick="limpar()" class="text-gray-500 hover:text-gray-700 text-sm underline">
+        Limpar filtros
+      </button>
+      <span class="text-gray-400 text-sm ml-auto" id="total-resultados"></span>
+    </div>
+  </div>
+
+  <!-- Lista de reclamações -->
+  <div id="lista-reclamacoes" class="space-y-3"></div>
+
+  <!-- Paginação -->
+  <div class="flex justify-center gap-3 mt-8" id="paginacao"></div>
+
+</div>
+
+<!-- Modal de detalhes -->
+<div id="modal" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+    <div class="flex justify-between items-start mb-4">
+      <h3 class="text-lg font-bold text-gray-900 pr-4" id="modal-titulo"></h3>
+      <button onclick="fecharModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold shrink-0">×</button>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-4" id="modal-badges"></div>
+    <p class="text-gray-700 text-sm leading-relaxed mb-4" id="modal-descricao"></p>
+    <div class="text-xs text-gray-400 mb-4" id="modal-meta"></div>
+    <a id="modal-link" href="#" target="_blank"
+       class="inline-block bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+      Ver no Reclame Aqui →
+    </a>
+  </div>
+</div>
+
+<script>
+  const LIMIT = 20;
+  let currentOffset = 0;
+  let nichoAtivo = '';
+  let graficoInstance = null;
+
+  const statusLabel = {
+    nao_respondida: 'Não respondida',
+    respondida: 'Respondida',
+    avaliada: 'Avaliada',
+    em_analise: 'Em análise',
+    desconhecido: 'Desconhecido',
+  };
+
+  const nichoColors = {
+    blue: '#3b82f6', green: '#22c55e', purple: '#a855f7',
+    pink: '#ec4899', yellow: '#eab308', red: '#ef4444',
+    indigo: '#6366f1', orange: '#f97316', teal: '#14b8a6', cyan: '#06b6d4',
+  };
+
+  function fmtData(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  }
+
+  function badgeClass(status) {
+    const map = {nao_respondida:'status-nao_respondida', respondida:'status-respondida',
+                 avaliada:'status-avaliada', em_analise:'status-em_analise'};
+    return 'status-badge ' + (map[status] || 'status-desconhecido');
+  }
+
+  // ------ Estatísticas ------
+  async function carregarEstatisticas() {
+    const res = await fetch('/api/estatisticas');
+    const data = await res.json();
+
+    document.getElementById('stat-total').textContent = (data.total||0).toLocaleString('pt-BR');
+    document.getElementById('stat-24h').textContent   = (data.recentes_24h||0).toLocaleString('pt-BR');
+    document.getElementById('stat-nr').textContent    = (data.por_status?.nao_respondida||0).toLocaleString('pt-BR');
+    document.getElementById('stat-resp').textContent  = (data.por_status?.respondida||0).toLocaleString('pt-BR');
+
+    // Tabela plataformas
+    const tbody = document.getElementById('tbody-plataformas');
+    tbody.innerHTML = (data.plataformas||[])
+      .filter(p => p.ativa)
+      .sort((a,b) => (b.total||0)-(a.total||0))
+      .map(p => `
+        <tr class="border-b last:border-0 hover:bg-gray-50 cursor-pointer" onclick="filtrarPor('${p.nome}')">
+          <td class="py-2 pr-4 font-medium text-gray-800 text-sm">${p.nome}</td>
+          <td class="py-2 pr-4 text-right text-gray-600 text-sm">${(p.total||0).toLocaleString('pt-BR')}</td>
+          <td class="py-2 text-right text-gray-400 text-xs">${p.ultima_raspagem ? fmtData(p.ultima_raspagem) : 'Nunca'}</td>
+        </tr>`).join('');
+
+    // Select plataformas
+    const sel = document.getElementById('plataforma');
+    (data.plataformas||[]).filter(p=>p.ativa).map(p=>p.nome).sort().forEach(nome => {
+      if (!sel.querySelector(`option[value="${nome}"]`)) {
+        const o = document.createElement('option');
+        o.value = nome; o.textContent = nome;
+        sel.appendChild(o);
+      }
+    });
+  }
+
+  // ------ Gráfico de tendência ------
+  async function carregarGrafico() {
+    const res = await fetch('/api/tendencia?dias=30');
+    const data = await res.json();
+    if (!data.datas || data.datas.length === 0) return;
+
+    const ctx = document.getElementById('grafico-tendencia').getContext('2d');
+    if (graficoInstance) graficoInstance.destroy();
+    graficoInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.datas.map(d => {
+          const [y,m,dia] = d.split('-');
+          return `${dia}/${m}`;
+        }),
+        datasets: [{
+          label: 'Reclamações coletadas',
+          data: data.valores,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.1)',
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0.3,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { ticks: { maxTicksLimit: 8 } },
+        },
+      }
+    });
+  }
+
+  // ------ Nichos ------
+  async function carregarNichos() {
+    const res = await fetch('/api/nichos');
+    const nichos = await res.json();
+    const grid = document.getElementById('nichos-grid');
+    if (nichos.length === 0) {
+      grid.innerHTML = '<div class="text-gray-400 text-sm col-span-5">Sem dados. Clique em "Reanalisar".</div>';
+      return;
+    }
+    const cor = (c) => nichoColors[c] || '#6366f1';
+    grid.innerHTML = nichos.map(n => `
+      <div class="nicho-chip rounded-xl p-3 text-center border-2 border-transparent hover:border-current"
+           style="background:${cor(n.cor)}18; color:${cor(n.cor)}"
+           onclick="filtrarPorNicho('${n.nome}')">
+        <div class="text-xl font-bold">${n.total}</div>
+        <div class="text-xs font-medium mt-0.5">${n.nome}</div>
+      </div>`).join('');
+  }
+
+  // ------ Palavras-chave ------
+  async function carregarPalavrasChave() {
+    const res = await fetch('/api/palavras-chave?limit=40');
+    const palavras = await res.json();
+    const container = document.getElementById('palavras-chave');
+    if (palavras.length === 0) {
+      container.innerHTML = '<div class="text-gray-400 text-sm">Sem dados. Execute a análise.</div>';
+      return;
+    }
+    const maxFreq = palavras[0]?.frequencia || 1;
+    container.innerHTML = palavras.map((p, i) => {
+      const size = Math.round(12 + ((p.frequencia / maxFreq) * 14));
+      const opacity = 0.5 + ((p.frequencia / maxFreq) * 0.5);
+      return `<span class="palavra-tag px-2 py-1 rounded-full bg-blue-50 text-blue-700 font-medium"
+        style="font-size:${size}px; opacity:${opacity}"
+        onclick="buscarPalavra('${p.palavra}')"
+        title="${p.frequencia} ocorrências">
+        ${p.palavra}
+      </span>`;
+    }).join('');
+  }
+
+  // ------ Busca ------
+  async function buscar(offset = 0) {
+    currentOffset = offset;
+    const busca = document.getElementById('busca').value.trim();
+    const plataforma = document.getElementById('plataforma').value;
+    const status = document.getElementById('status').value;
+
+    const params = new URLSearchParams({limit: LIMIT, offset});
+    if (busca) params.append('busca', busca);
+    if (plataforma) params.append('plataforma', plataforma);
+    if (status) params.append('status', status);
+    if (nichoAtivo) params.append('nicho', nichoAtivo);
+
+    const res = await fetch('/api/reclamacoes?' + params);
+    const data = await res.json();
+    currentTotal = data.total;
+
+    document.getElementById('total-resultados').textContent =
+      data.total > 0 ? `${data.total.toLocaleString('pt-BR')} resultado(s)` : 'Nenhum resultado';
+
+    const container = document.getElementById('lista-reclamacoes');
+    if (data.reclamacoes.length === 0) {
+      container.innerHTML = '<div class="text-center text-gray-400 py-12">Nenhuma reclamação encontrada.</div>';
+      document.getElementById('paginacao').innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = data.reclamacoes.map(r => `
+      <div class="bg-white rounded-xl shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow"
+           onclick="abrirModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <h3 class="font-semibold text-gray-900 leading-snug text-sm">${r.titulo}</h3>
+          <div class="flex gap-1.5 shrink-0 flex-wrap justify-end">
+            <span class="${badgeClass(r.status)}">${statusLabel[r.status] || r.status}</span>
+            ${r.nicho ? `<span class="status-badge bg-purple-100 text-purple-700">${r.nicho}</span>` : ''}
+          </div>
+        </div>
+        ${r.descricao ? `<p class="text-gray-500 text-sm mb-3 line-clamp-2">${r.descricao}</p>` : ''}
+        <div class="flex items-center justify-between text-xs text-gray-400">
+          <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">${r.plataforma}</span>
+          <span>${fmtData(r.data)}</span>
+        </div>
+      </div>`).join('');
+
+    renderPaginacao(data.total, offset);
+  }
+
+  function renderPaginacao(total, offset) {
+    const totalPages = Math.ceil(total / LIMIT);
+    const currentPage = Math.floor(offset / LIMIT) + 1;
+    const container = document.getElementById('paginacao');
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    let html = '';
+    if (currentPage > 1)
+      html += `<button onclick="buscar(${(currentPage-2)*LIMIT})"
+        class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">← Anterior</button>`;
+    html += `<span class="px-4 py-2 text-sm text-gray-500">Página ${currentPage} de ${totalPages}</span>`;
+    if (currentPage < totalPages)
+      html += `<button onclick="buscar(${currentPage*LIMIT})"
+        class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">Próxima →</button>`;
+    container.innerHTML = html;
+  }
+
+  function limpar() {
+    document.getElementById('busca').value = '';
+    document.getElementById('plataforma').value = '';
+    document.getElementById('status').value = '';
+    nichoAtivo = '';
+    document.getElementById('filtro-nicho-ativo').classList.add('hidden');
+    buscar(0);
+  }
+
+  function limparNicho() {
+    nichoAtivo = '';
+    document.getElementById('filtro-nicho-ativo').classList.add('hidden');
+    buscar(0);
+  }
+
+  function filtrarPor(plataforma) {
+    document.getElementById('plataforma').value = plataforma;
+    buscar(0);
+    document.getElementById('lista-reclamacoes').scrollIntoView({behavior:'smooth'});
+  }
+
+  function filtrarPorNicho(nicho) {
+    nichoAtivo = nicho;
+    document.getElementById('nicho-ativo-label').textContent = nicho;
+    document.getElementById('filtro-nicho-ativo').classList.remove('hidden');
+    buscar(0);
+    document.getElementById('lista-reclamacoes').scrollIntoView({behavior:'smooth'});
+  }
+
+  function buscarPalavra(palavra) {
+    document.getElementById('busca').value = palavra;
+    buscar(0);
+    document.getElementById('lista-reclamacoes').scrollIntoView({behavior:'smooth'});
+  }
+
+  // ------ Modal ------
+  function abrirModal(r) {
+    document.getElementById('modal-titulo').textContent = r.titulo;
+    const badges = [
+      `<span class="${badgeClass(r.status)}">${statusLabel[r.status] || r.status}</span>`,
+      `<span class="status-badge bg-gray-100 text-gray-600">${r.plataforma}</span>`,
+    ];
+    if (r.nicho) badges.push(`<span class="status-badge bg-purple-100 text-purple-700">${r.nicho}</span>`);
+    document.getElementById('modal-badges').innerHTML = badges.join('');
+    document.getElementById('modal-descricao').textContent = r.descricao || '(sem descrição)';
+    document.getElementById('modal-meta').textContent = `Data: ${fmtData(r.data)} · Coletado: ${fmtData(r.coletado)}`;
+    document.getElementById('modal-link').href = r.url || '#';
+    document.getElementById('modal').classList.remove('hidden');
+  }
+
+  function fecharModal() {
+    document.getElementById('modal').classList.add('hidden');
+  }
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+  });
+
+  // ------ Ações ------
+  async function executarScraping() {
+    if (!confirm('Iniciar scraping + análise agora? Pode levar vários minutos.')) return;
+    const btn = document.getElementById('btn-scraping');
+    btn.disabled = true; btn.textContent = 'Iniciando...';
+    try {
+      const res = await fetch('/api/executar-scraping', {method:'POST'});
+      const data = await res.json();
+      alert(data.mensagem || 'Scraping iniciado!');
+    } catch(e) { alert('Erro ao iniciar.'); }
+    finally { btn.disabled = false; btn.textContent = 'Atualizar Agora'; }
+  }
+
+  async function executarAnalise() {
+    const btn = document.getElementById('btn-analise');
+    btn.textContent = 'Analisando...';
+    btn.style.pointerEvents = 'none';
+    try {
+      await fetch('/api/executar-analise', {method:'POST'});
+      setTimeout(() => {
+        carregarNichos();
+        carregarPalavrasChave();
+        btn.textContent = 'Reanalisar';
+        btn.style.pointerEvents = '';
+      }, 3000);
+    } catch(e) {
+      btn.textContent = 'Reanalisar';
+      btn.style.pointerEvents = '';
+    }
+  }
+
+  function exportarCSV() {
+    const busca = document.getElementById('busca').value.trim();
+    const plataforma = document.getElementById('plataforma').value;
+    const status = document.getElementById('status').value;
+    const params = new URLSearchParams();
+    if (busca) params.append('busca', busca);
+    if (plataforma) params.append('plataforma', plataforma);
+    if (status) params.append('status', status);
+    if (nichoAtivo) params.append('nicho', nichoAtivo);
+    window.location.href = '/api/exportar/csv?' + params;
+  }
+
+  // ------ Init ------
+  carregarEstatisticas();
+  carregarGrafico();
+  carregarNichos();
+  carregarPalavrasChave();
+  buscar(0);
+</script>
+</body>
+</html>

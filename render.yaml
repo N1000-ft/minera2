@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: minera2
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    disk:
+      name: minera2-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////data/reclamacoes.db
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: GROK_API_KEY
+        sync: false

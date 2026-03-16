@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IA - Mineração Inteligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <a href="/" class="text-gray-500 hover:text-gray-800 text-sm">← Dashboard</a>
+            <h1 class="text-xl font-bold text-gray-800">Mineração Inteligente com IA</h1>
+            <span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">Grok AI</span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="executarAnalise(100)" class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg">
+                Analisar 100 reclamações
+            </button>
+            <button onclick="carregarInsights()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg">
+                Gerar Insights
+            </button>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Coluna esquerda: Produtos Nichados -->
+        <div class="space-y-4">
+
+            <!-- Filtros -->
+            <div class="bg-white rounded-xl shadow-sm p-4">
+                <div class="flex gap-2 flex-wrap">
+                    <select id="filtro-nicho" onchange="carregarProdutos()" class="border rounded-lg px-3 py-1.5 text-sm">
+                        <option value="">Todos os nichos</option>
+                        <option value="emagrecimento">Emagrecimento</option>
+                        <option value="relacionamento">Relacionamento</option>
+                        <option value="renda_extra">Renda Extra</option>
+                        <option value="saude">Saúde</option>
+                        <option value="beleza">Beleza</option>
+                        <option value="esoterico">Esotérico</option>
+                        <option value="financas">Finanças</option>
+                        <option value="educacao">Educação</option>
+                        <option value="desenvolvimento_pessoal">Desenvolvimento Pessoal</option>
+                        <option value="esporte">Esporte</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                    <input id="filtro-min" type="number" value="1" min="1" onchange="carregarProdutos()"
+                           placeholder="Min. menções" class="border rounded-lg px-3 py-1.5 text-sm w-32">
+                    <button onclick="carregarProdutos()" class="bg-gray-100 hover:bg-gray-200 text-sm px-3 py-1.5 rounded-lg">
+                        Filtrar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lista de Produtos -->
+            <div class="bg-white rounded-xl shadow-sm">
+                <div class="px-4 py-3 border-b flex items-center justify-between">
+                    <h2 class="font-semibold text-gray-800">Produtos Nichados Detectados</h2>
+                    <span id="total-produtos" class="text-xs text-gray-500"></span>
+                </div>
+                <div id="lista-produtos" class="divide-y max-h-[500px] overflow-y-auto">
+                    <div class="p-4 text-gray-400 text-sm text-center">Carregando...</div>
+                </div>
+            </div>
+
+            <!-- Insights -->
+            <div id="card-insights" class="bg-white rounded-xl shadow-sm hidden">
+                <div class="px-4 py-3 border-b">
+                    <h2 class="font-semibold text-gray-800">Insights Estratégicos</h2>
+                </div>
+                <div id="conteudo-insights" class="p-4 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed"></div>
+            </div>
+
+        </div>
+
+        <!-- Coluna direita: Chat -->
+        <div class="flex flex-col bg-white rounded-xl shadow-sm" style="height: 680px;">
+            <div class="px-4 py-3 border-b">
+                <h2 class="font-semibold text-gray-800">Chat com IA</h2>
+                <p class="text-xs text-gray-500">Pergunte sobre produtos, nichos e oportunidades</p>
+            </div>
+
+            <!-- Mensagens -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div class="flex justify-start">
+                    <div class="bg-purple-50 border border-purple-100 text-gray-700 px-4 py-3 rounded-2xl rounded-tl-none max-w-sm text-sm">
+                        Olá! Sou o Grok AI integrado à sua base de reclamações. Pergunte sobre produtos nichados, nichos em alta ou oportunidades de afiliação.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sugestões -->
+            <div class="px-4 py-2 border-t border-b flex gap-2 overflow-x-auto">
+                <button onclick="enviarPergunta('Quais nichos estão mais quentes agora?')" class="whitespace-nowrap text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full">
+                    Nichos mais quentes?
+                </button>
+                <button onclick="enviarPergunta('Quais produtos de emagrecimento têm maior potencial?')" class="whitespace-nowrap text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full">
+                    Emagrecimento
+                </button>
+                <button onclick="enviarPergunta('Que padrões de naming nos produtos indicam alta conversão?')" class="whitespace-nowrap text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full">
+                    Padrões de naming
+                </button>
+                <button onclick="enviarPergunta('Quais produtos devo evitar por excesso de reclamações?')" class="whitespace-nowrap text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full">
+                    Produtos a evitar
+                </button>
+            </div>
+
+            <!-- Input -->
+            <div class="px-4 py-3">
+                <form id="form-chat" class="flex gap-2">
+                    <input id="input-chat" type="text" required
+                           placeholder="Ex: Quais produtos de relacionamento estão em alta?"
+                           class="flex-1 border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300">
+                    <button type="submit" id="btn-enviar"
+                            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50">
+                        Enviar
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="hidden fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm shadow-lg"></div>
+
+    <script>
+        // ── Carregar produtos ────────────────────────────────────────────
+        async function carregarProdutos() {
+            const nicho = document.getElementById('filtro-nicho').value;
+            const min = document.getElementById('filtro-min').value || 1;
+            const params = new URLSearchParams({ min_frequencia: min, limit: 100 });
+            if (nicho) params.append('nicho', nicho);
+
+            const res = await fetch(`/api/produtos-nichados?${params}`);
+            const produtos = await res.json();
+
+            const lista = document.getElementById('lista-produtos');
+            document.getElementById('total-produtos').textContent = `${produtos.length} produto(s)`;
+
+            if (!produtos.length) {
+                lista.innerHTML = '<div class="p-6 text-gray-400 text-sm text-center">Nenhum produto detectado.<br>Execute a análise com IA para começar.</div>';
+                return;
+            }
+
+            const NICHO_CORES = {
+                emagrecimento: 'bg-green-100 text-green-800',
+                relacionamento: 'bg-pink-100 text-pink-800',
+                renda_extra: 'bg-yellow-100 text-yellow-800',
+                saude: 'bg-blue-100 text-blue-800',
+                beleza: 'bg-rose-100 text-rose-800',
+                esoterico: 'bg-purple-100 text-purple-800',
+                financas: 'bg-indigo-100 text-indigo-800',
+                educacao: 'bg-cyan-100 text-cyan-800',
+                desenvolvimento_pessoal: 'bg-orange-100 text-orange-800',
+                esporte: 'bg-teal-100 text-teal-800',
+            };
+
+            lista.innerHTML = produtos.map(p => {
+                const cor = NICHO_CORES[p.nicho] || 'bg-gray-100 text-gray-700';
+                const plats = (p.plataformas || []).join(', ') || '—';
+                return `
+                    <div class="px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-gray-900 text-sm truncate">${p.nome}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">${plats}</p>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-xs px-2 py-0.5 rounded-full ${cor}">${p.nicho || '—'}</span>
+                                <span class="text-xs font-semibold text-gray-700">${p.frequencia}x</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ── Chat ─────────────────────────────────────────────────────────
+        async function enviarPergunta(texto) {
+            if (!texto.trim()) return;
+
+            const messagesDiv = document.getElementById('chat-messages');
+            const btnEnviar = document.getElementById('btn-enviar');
+            const input = document.getElementById('input-chat');
+
+            // Mensagem do usuário
+            messagesDiv.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-purple-600 text-white px-4 py-2 rounded-2xl rounded-tr-none max-w-sm text-sm">${texto}</div>
+                </div>`;
+
+            // Loading
+            const loadingId = `loading-${Date.now()}`;
+            messagesDiv.innerHTML += `
+                <div id="${loadingId}" class="flex justify-start">
+                    <div class="bg-gray-100 px-4 py-2 rounded-2xl rounded-tl-none text-gray-400 text-sm">
+                        <span class="animate-pulse">Pensando...</span>
+                    </div>
+                </div>`;
+
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            btnEnviar.disabled = true;
+            input.value = '';
+
+            try {
+                const res = await fetch('/api/grok/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pergunta: texto }),
+                });
+                const data = await res.json();
+
+                document.getElementById(loadingId)?.remove();
+
+                const resposta = data.resposta.replace(/\n/g, '<br>');
+                messagesDiv.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="bg-gray-100 text-gray-800 px-4 py-3 rounded-2xl rounded-tl-none max-w-lg text-sm leading-relaxed">${resposta}</div>
+                    </div>`;
+
+            } catch (e) {
+                document.getElementById(loadingId)?.remove();
+                messagesDiv.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-2xl text-sm">Erro ao consultar IA. Tente novamente.</div>
+                    </div>`;
+            }
+
+            btnEnviar.disabled = false;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        document.getElementById('form-chat').addEventListener('submit', e => {
+            e.preventDefault();
+            enviarPergunta(document.getElementById('input-chat').value.trim());
+        });
+
+        // ── Análise ──────────────────────────────────────────────────────
+        async function executarAnalise(limite) {
+            if (!confirm(`Analisar ${limite} reclamações com Grok AI?\nIsso pode levar alguns minutos.`)) return;
+
+            mostrarToast(`Análise de ${limite} reclamações iniciada em background...`);
+
+            await fetch(`/api/grok/analisar?limite=${limite}`, { method: 'POST' });
+
+            setTimeout(() => carregarProdutos(), 3000);
+        }
+
+        // ── Insights ─────────────────────────────────────────────────────
+        async function carregarInsights() {
+            mostrarToast('Gerando insights com IA...');
+            const card = document.getElementById('card-insights');
+            const conteudo = document.getElementById('conteudo-insights');
+            card.classList.remove('hidden');
+            conteudo.textContent = 'Aguarde...';
+
+            const res = await fetch('/api/insights');
+            const data = await res.json();
+            conteudo.textContent = data.insights;
+        }
+
+        function mostrarToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 4000);
+        }
+
+        // Carrega ao iniciar
+        carregarProdutos();
+    </script>
+</body>
+</html>

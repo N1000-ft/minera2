@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Stopwords</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Gestão de Stopwords</h1>
+      <p class="text-gray-500 text-sm mt-1">Palavras bloqueadas da análise de nichos e palavras-chave</p>
+    </div>
+    <a href="/" class="text-blue-600 hover:underline text-sm">← Dashboard</a>
+  </div>
+
+  <!-- Adicionar -->
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <h2 class="font-semibold text-gray-800 mb-4">Adicionar Palavra Bloqueada</h2>
+    <form id="form-add" class="flex gap-3">
+      <input type="text" id="nova-palavra" required placeholder="Ex: instagram"
+        class="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+      <select id="categoria"
+        class="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none">
+        <option value="customizada">Customizada</option>
+        <option value="generico">Genérica</option>
+        <option value="juridico">Jurídica</option>
+        <option value="tecnico">Técnica</option>
+        <option value="sentimento">Sentimento</option>
+        <option value="faturamento">Faturamento</option>
+      </select>
+      <button type="submit"
+        class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+        + Bloquear
+      </button>
+    </form>
+    <p id="form-msg" class="text-sm mt-2 hidden"></p>
+  </div>
+
+  <!-- Lista por categoria -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b flex items-center justify-between">
+      <h2 class="font-semibold text-gray-800">Palavras Bloqueadas</h2>
+      <span id="total-sw" class="text-sm text-gray-400"></span>
+    </div>
+    <div id="lista-stopwords" class="p-6 space-y-6">
+      <div class="text-gray-400 text-sm">Carregando...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const COR_CAT = {
+    customizada: 'bg-purple-100 text-purple-800',
+    generico:    'bg-gray-100 text-gray-700',
+    juridico:    'bg-orange-100 text-orange-800',
+    tecnico:     'bg-blue-100 text-blue-800',
+    sentimento:  'bg-yellow-100 text-yellow-800',
+    faturamento: 'bg-green-100 text-green-800',
+  };
+
+  async function carregar() {
+    const res = await fetch('/api/stopwords');
+    const lista = await res.json();
+    document.getElementById('total-sw').textContent = `${lista.length} palavras bloqueadas`;
+
+    // Agrupa por categoria
+    const grupos = {};
+    lista.forEach(s => {
+      if (!grupos[s.categoria]) grupos[s.categoria] = [];
+      grupos[s.categoria].push(s);
+    });
+
+    const container = document.getElementById('lista-stopwords');
+    if (lista.length === 0) {
+      container.innerHTML = '<p class="text-gray-400 text-sm">Nenhuma stopword cadastrada ainda.</p>';
+      return;
+    }
+
+    container.innerHTML = Object.entries(grupos)
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([cat, palavras]) => `
+        <div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            ${cat} <span class="font-normal normal-case">(${palavras.length})</span>
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            ${palavras.map(s => `
+              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${COR_CAT[s.categoria] || COR_CAT.customizada}">
+                ${s.palavra}
+                <button onclick="remover(${s.id}, '${s.palavra}')"
+                  class="ml-1 opacity-60 hover:opacity-100 font-bold text-base leading-none">×</button>
+              </span>`).join('')}
+          </div>
+        </div>`).join('');
+  }
+
+  document.getElementById('form-add').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const palavra   = document.getElementById('nova-palavra').value.trim();
+    const categoria = document.getElementById('categoria').value;
+    const msg = document.getElementById('form-msg');
+    msg.classList.add('hidden');
+
+    const res = await fetch('/api/stopwords', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({palavra, categoria}),
+    });
+    const data = await res.json();
+
+    msg.textContent = data.mensagem || data.detail || '';
+    msg.className = `text-sm mt-2 ${res.ok ? 'text-green-600' : 'text-red-500'}`;
+    msg.classList.remove('hidden');
+
+    if (res.ok) {
+      document.getElementById('form-add').reset();
+      carregar();
+    }
+  });
+
+  async function remover(id, palavra) {
+    if (!confirm(`Remover "${palavra}" das stopwords?`)) return;
+    const res = await fetch(`/api/stopwords/${id}`, {method: 'DELETE'});
+    if (res.ok) carregar();
+  }
+
+  carregar();
+</script>
+</body>
+</html>
